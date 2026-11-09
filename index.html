@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>法援桥 · AI Agent + 法学生志愿者协同法律辅助平台</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <div class="logo">援</div>
+    <div>
+      <h1>法援桥 <span>LegalAid Copilot</span></h1>
+      <p>AI Agent + 法学生志愿者 · Plan-Validate-Execute 协同工作流</p>
+    </div>
+  </div>
+  <div class="top-right">
+    <span id="engineBadge" class="badge engine-local">本地规则引擎 · 离线可演示</span>
+    <span id="volunteerBadge" class="badge">志愿者：未登录</span>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="work">① 协同工作台</button>
+  <button class="tab" data-tab="kb">② 法律知识库</button>
+  <button class="tab" data-tab="ops">③ 运营助手</button>
+  <button class="tab" data-tab="board">④ 台账与看板</button>
+  <button class="tab" data-tab="test">⑥ 合成用例自测</button>
+  <button class="tab" data-tab="gov">⑤ 合规与设置</button>
+</nav>
+
+<main>
+<!-- ========== 工作台 ========== -->
+<section class="panel active" id="panel-work">
+  <ol class="rail" id="rail">
+    <li class="rail-step done" data-step="1"><b>1</b><span>求助受理</span></li>
+    <li class="rail-step" data-step="2"><b>2</b><span>Agent 规划 Plan</span></li>
+    <li class="rail-step" data-step="3"><b>3</b><span>志愿者验证 Validate</span></li>
+    <li class="rail-step" data-step="4"><b>4</b><span>Agent 执行 Execute</span></li>
+    <li class="rail-step" data-step="5"><b>5</b><span>复核交付 Deliver</span></li>
+  </ol>
+
+  <!-- step1 -->
+  <div class="stage" data-stage="1">
+    <div class="grid2">
+      <div class="card">
+        <h3>求助陈述（面向求助者的入口）</h3>
+        <textarea id="story" rows="7" placeholder="用你自己的话描述发生了什么：什么时候、和谁、关于什么钱或什么事、现在想要什么结果。不用写法律术语。"></textarea>
+        <div class="row">
+          <label>化名/编号 <input id="alias" value="求助人A" maxlength="20"></label>
+          <label>事项类型（可留空由 Agent 判断）
+            <select id="scenePick"><option value="">自动识别</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <label>关键日期（时效计算用）<input type="date" id="keyDate"></label>
+          <label>争议金额（元）<input type="number" id="keyAmount" min="0" placeholder="0"></label>
+        </div>
+        <div class="btns">
+          <button id="btnSubmit" class="primary">提交给 Agent 规划</button>
+          <button id="btnDemo1" class="ghost">载入示例：欠薪</button>
+          <button id="btnDemo2" class="ghost">示例：借款到期不还</button>
+          <button id="btnDemo3" class="ghost">示例：押金不退</button>
+        </div>
+        <p class="tip">求助者端不显示法律结论，仅显示受理编号与人工复核说明。</p>
+      </div>
+      <div class="card">
+        <h3>志愿者身份</h3>
+        <div class="row">
+          <label>姓名/编号 <input id="volName" placeholder="如：法学生志愿者 03"></label>
+          <label>服务单位 <input id="volUnit" placeholder="如：复旦大学法律援助社团"></label>
+        </div>
+        <button id="btnLogin" class="primary">确认身份</button>
+        <h3 style="margin-top:18px">协作模式说明</h3>
+        <ul class="dots">
+          <li><b>Plan</b>：Agent 先生成"怎么办这件事"的计划，不直接下结论</li>
+          <li><b>Validate</b>：志愿者批准/修改计划，补齐 Agent 问不出的事实</li>
+          <li><b>Execute</b>：Agent 检索知识库、生成报告与文书草稿</li>
+          <li><b>Deliver</b>：志愿者复核签字后交付，Agent 只做记录与统计</li>
+        </ul>
+        <p class="tip">风险分级路由：低风险可抽检，高风险强制人工复核且不允许自动交付。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- step2 -->
+  <div class="stage" data-stage="2">
+    <div class="card">
+      <h3>Agent 处理计划 <span class="tag">Plan 层输出</span></h3>
+      <div id="planBox"></div>
+      <div class="btns">
+        <button id="btnToValidate" class="primary">进入志愿者验证 →</button>
+        <button id="btnReplan" class="ghost">要求 Agent 重新规划</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- step3 -->
+  <div class="stage" data-stage="3">
+    <div class="card">
+      <h3>志愿者验证 <span class="tag warn">Validate 层 · 人工决策</span></h3>
+      <div id="validateBox"></div>
+      <div class="btns">
+        <button id="btnApprove" class="primary">批准计划并执行</button>
+        <button id="btnBackPlan" class="ghost">退回修改</button>
+      </div>
+      <p class="tip">校验项未完成时无法批准（系统强制）。这是"AI 不能绕过人"的技术实现点。</p>
+    </div>
+  </div>
+
+  <!-- step4 -->
+  <div class="stage" data-stage="4">
+    <div class="card">
+      <h3>Agent 执行结果 <span class="tag">Execute 层输出（草稿，未交付）</span></h3>
+      <div class="subtabs">
+        <button class="subtab active" data-out="report">法律分析报告</button>
+        <button class="subtab" data-out="doc">文书草稿</button>
+        <button class="subtab" data-out="plain">求助者说明（通俗版）</button>
+        <button class="subtab" data-out="evidence">证据清单</button>
+      </div>
+      <div class="out" id="out-report"></div>
+      <div class="out hide" id="out-doc"><textarea id="docEdit" rows="18"></textarea></div>
+      <div class="out hide" id="out-plain"></div>
+      <div class="out hide" id="out-evidence"></div>
+      <div class="btns">
+        <button id="btnToDeliver" class="primary">提交志愿者复核 →</button>
+        <button id="btnRegen" class="ghost">按补充意见重生成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- step5 -->
+  <div class="stage" data-stage="5">
+    <div class="card">
+      <h3>复核与交付 <span class="tag warn">人工终审</span></h3>
+      <div id="deliverBox"></div>
+    </div>
+    <div class="card" id="deliverResult"></div>
+  </div>
+</section>
+
+<!-- ========== 知识库 ========== -->
+<section class="panel" id="panel-kb">
+  <div class="card">
+    <h3>结构化法律知识库 <span class="tag" id="kbCount"></span></h3>
+    <input id="kbSearch" placeholder="搜索场景、关键词、法条…">
+    <div class="btns"><button id="btnAddKb" class="ghost">+ 志愿者投稿新知识条目</button></div>
+    <div id="kbList"></div>
+  </div>
+  <div class="card">
+    <h3>风险分级路由规则表</h3>
+    <table class="tbl"><thead><tr><th>规则</th><th>等级</th><th>触发条件</th><th>处理方式</th></tr></thead><tbody id="riskRows"></tbody></table>
+  </div>
+</section>
+
+<!-- ========== 运营助手 ========== -->
+<section class="panel" id="panel-ops">
+  <div class="grid2">
+    <div class="card">
+      <h3>普法内容生成（对外运营）</h3>
+      <div class="row">
+        <label>主题场景 <select id="opsScene"></select></label>
+        <label>发布形态 <select id="opsForm">
+          <option value="xhs">小红书短文</option><option value="mp">公众号图文</option><option value="card">社区卡片</option>
+        </select></label>
+      </div>
+      <textarea id="opsFocus" rows="2" placeholder="本期想强调的点（可选）">被拖欠工资后，第一步该做什么</textarea>
+      <div class="btns"><button id="btnOps" class="primary">生成初稿（含合规自检）</button></div>
+      <div id="opsOut" class="out"></div>
+    </div>
+    <div class="card">
+      <h3>OPC 一人公司运营闭环</h3>
+      <div id="opsLoop"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 台账 ========== -->
+<section class="panel" id="panel-board">
+  <div class="grid4" id="statCards"></div>
+  <div class="card">
+    <h3>受理台账 <span class="tag">本地存储 · 不含原始敏感信息</span></h3>
+    <table class="tbl"><thead><tr><th>编号</th><th>时间</th><th>场景</th><th>风险</th><th>复核方式</th><th>志愿者</th><th>Agent耗时</th><th>状态</th><th></th></tr></thead><tbody id="ledgerRows"></tbody></table>
+    <div class="btns">
+      <button id="btnCsv" class="ghost">导出 CSV（运营数据）</button>
+      <button id="btnClear" class="ghost danger">清空本机台账</button>
+    </div>
+  </div>
+  <div class="card">
+    <h3>效率测算口径（需以真实记录替换）</h3>
+    <div id="effBox"></div>
+  </div>
+</section>
+
+<!-- ========== 合成用例自测 ========== -->
+<section class="panel" id="panel-test">
+  <div class="card">
+    <h3>合成用例回归测试 <span class="tag warn">不是真实求助记录，不得当作用户反馈对外使用</span></h3>
+    <p class="tip">用例文本为人工编写的模拟诉求，目的是可重现地验证引擎行为（场景识别、风险判级、时效计算、输出完整性、高风险闸门）。每一行的“人工审核结论”必须由志愿者本人看输出后勾选，勾定结果才是可对外陈述的测试数据。</p>
+    <div class="btns">
+      <button id="btnRunTest" class="primary">运行全量自测（知识库 v<span id="tv0"></span>）</button>
+      <button id="btnTestCsv" class="ghost">导出自测报告 CSV</button>
+      <button id="btnTestClear" class="ghost danger">清除本机自测记录</button>
+    </div>
+    <div class="grid4" id="testCards" style="margin-top:14px"></div>
+    <table class="tbl"><thead><tr><th>用例</th><th>期望场景</th><th>实际识别</th><th>期望风险</th><th>实际判级</th><th>触发规则</th><th>时效结论</th><th>条文数</th><th>输出完整性</th><th>人工审核</th></tr></thead><tbody id="testRows"></tbody></table>
+    <p class="tip" id="testFooter"></p>
+  </div>
+</section>
+
+<!-- ========== 合规 ========== -->
+<section class="panel" id="panel-gov">
+  <div class="grid2">
+    <div class="card">
+      <h3>免责声明（对外交付必附）</h3>
+      <p id="disclaimerText" class="quote"></p>
+    </div>
+    <div class="card">
+      <h3>数据与个人信息保护</h3>
+      <ul class="dots" id="pplList"></ul>
+    </div>
+    <div class="card">
+      <h3>大模型接入（可选）</h3>
+      <p class="tip">默认使用本地规则引擎以保证离线演示。填入 OpenAI 兼容接口后，Plan/Execute 层改由大模型生成，人工复核环节不变。密钥仅保存在本机浏览器。</p>
+      <div class="row">
+        <label>API Base <input id="llmBase" placeholder="https://api.xxx.com/v1"></label>
+        <label>模型名 <input id="llmModel" placeholder="如 deepseek-chat / qwen-plus"></label>
+      </div>
+      <label>API Key（仅存本机）<input id="llmKey" type="password" placeholder="留空即使用本地引擎"></label>
+      <div class="btns">
+        <button id="btnSaveLlm" class="primary">保存并测试连接</button>
+        <button id="btnOffLlm" class="ghost">切回本地引擎</button>
+      </div>
+      <p id="llmMsg" class="tip"></p>
+    </div>
+    <div class="card">
+      <h3>志愿者复核清单</h3>
+      <ul class="check" id="checkList"></ul>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <span id="footState">就绪</span>
+  <span>法援桥 v1.0 · 演示原型 · 输出不构成法律意见 · 求助请拨 12348</span>
+</footer>
+
+<script src="kb.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
